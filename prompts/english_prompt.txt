@@ -1,0 +1,10 @@
+Convert this discharge summary into structured patient instructions.
+
+Format:
+- Condition
+- Medication
+- Diet
+- Monitoring
+- Warning
+
+Use simple English.

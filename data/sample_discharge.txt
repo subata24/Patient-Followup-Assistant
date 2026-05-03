@@ -1,1 +1,4 @@
-Patient diagnosed with hypertension. Prescribed amlodipine 5mg daily. Advised low sodium diet and regular blood pressure monitoring.
+Patient diagnosed with hypertension.
+Prescribed amlodipine 5mg daily.
+Advised low sodium diet.
+Monitor blood pressure regularly.
