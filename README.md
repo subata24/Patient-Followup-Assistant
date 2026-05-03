@@ -123,17 +123,19 @@ Response Output (English + Urdu)
 ## 📂 Project Structure
 patient-followup-assistant/
 │
-├── app.py # Streamlit UI
-├── core/
-│ ├── ai_engine.py # AI logic + Groq integration
-│ ├── risk.py # Risk detection system
-│ └── memory.py # Conversation memory
+├── app.py                     # Streamlit UI (main entry point)
 │
-├── data/
-│ └── sample_discharge.txt
+├── core/                      # Core AI logic modules
+│   ├── ai_engine.py           # Groq LLM integration + response generation
+│   ├── risk.py                # Patient risk detection system
+│   └── memory.py              # Conversation memory management
 │
-├── requirements.txt
-└── README.md
+├── data/                      # Sample or test medical data
+│   └── sample_discharge.txt   # Example discharge summary
+│
+├── requirements.txt           # Project dependencies
+├── .env                       # Environment variables (NOT pushed to GitHub)
+└── README.md                  # Project documentation
 
 
 ---
