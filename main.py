@@ -125,17 +125,92 @@ print(urdu_text)
 
 print("\n" + "=" * 50)
 
+
 # =========================
 # CHATBOT MODE
 # =========================
+
+def detect_risk(text):
+    text = text.lower()
+
+    high_risk_keywords = [
+        "chest pain", "faint", "dizzy", "breathing", "emergency",
+        "very high bp", "missed medicine", "worse", "collapse"
+    ]
+
+    medium_risk_keywords = [
+        "headache", "nausea", "weak", "tired", "uncertain",
+        "side effect", "not sure"
+    ]
+
+    for word in high_risk_keywords:
+        if word in text:
+            return "HIGH"
+
+    for word in medium_risk_keywords:
+        if word in text:
+            return "MEDIUM"
+
+    return "LOW"
+
+
+chat_history = []
+
 while True:
     user_question = input("\nAsk a question (type 'exit' to quit): ")
 
     if user_question.lower() == "exit":
         break
 
+    # =========================
+    # MEMORY UPDATE
+    # =========================
+    chat_history.append(f"Patient: {user_question}")
+
+    memory_context = "\n".join(chat_history[-6:])
+
+    # =========================
+    # RISK CHECK
+    # =========================
+    risk_level = detect_risk(user_question)
+    print(f"\n⚠️ Risk Level: {risk_level}")
+
+    # =========================
+    # SYSTEM INSTRUCTION
+    # =========================
+    if risk_level == "HIGH":
+        system_instruction = """
+You are a medical assistant.
+
+This is a HIGH RISK situation.
+
+You MUST:
+- Warn the patient clearly
+- Tell them to contact doctor or emergency services immediately
+- Be serious and short
+"""
+    elif risk_level == "MEDIUM":
+        system_instruction = """
+You are a medical assistant.
+
+This is a MEDIUM RISK situation.
+
+Give cautious advice and suggest contacting doctor if needed.
+"""
+    else:
+        system_instruction = """
+You are a medical assistant.
+
+This is LOW RISK.
+
+Provide normal simple guidance.
+"""
+
+    # =========================
+    # FINAL PROMPT
+    # =========================
     chat_prompt = f"""
-You are a medical assistant helping a discharged patient.
+{system_instruction}
 
 Patient condition:
 {discharge_text}
@@ -143,21 +218,22 @@ Patient condition:
 Instructions:
 {english_text}
 
-Rules:
-- Answer in simple English
-- Be short and clear
-- If risk symptoms appear (dizziness, missed medicine, high BP, worsening condition):
-    → warn patient
-    → suggest contacting doctor
+Conversation history:
+{memory_context}
 
 Question:
 {user_question}
 """
 
+    # =========================
+    # AI CALL
+    # =========================
     answer = safe_ai_call(client, chat_prompt)
 
     if answer:
         print("\n🤖 Assistant:")
         print(answer)
+
+        chat_history.append(f"Assistant: {answer}")
     else:
         print("⚠️ No response received.")
