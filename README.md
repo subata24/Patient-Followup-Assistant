@@ -1,56 +1,36 @@
-# 🏥 Post-Discharge Patient Follow-Up Assistant
+# 🏥 AI Post Discharge Patient Assistant
 
-An AI-powered assistant that helps hospitals stay connected with patients after discharge.
+An AI-powered healthcare assistant that helps patients after hospital discharge by:
+
+- Converting medical discharge summaries into simple instructions
+- Translating instructions into Urdu
+- Providing chatbot support for patient questions
+- Detecting risk levels (LOW / MEDIUM / HIGH)
+- Running as a Streamlit web application
 
 ---
 
 ## 🚀 Features
 
-* 📄 Reads patient discharge summaries
-* 🧠 Generates simple medical instructions
-* 🌐 Supports English + Urdu (basic)
-* 💬 Interactive chatbot for patient questions
-* ⚠️ Detects risky situations and suggests contacting doctor
-
----
-
-## 💡 Example Use Cases
-
-* "Can I eat rice?"
-* "What should I avoid?"
-* "I feel dizzy" → triggers warning
+- 🧠 Memory-based chatbot
+- ⚠️ Medical risk detection system
+- 🌍 English + Urdu support
+- 💬 AI-powered Q&A assistant
+- 🌐 Streamlit web interface
 
 ---
 
 ## 🛠 Tech Stack
 
-* Python
-* Groq API (Llama 3.1 model)
-* Prompt Engineering
+- Python
+- Groq LLM API
+- Streamlit
+- dotenv
 
 ---
 
-## 🧠 How It Works
-
-1. Reads discharge summary
-2. Converts into structured instructions
-3. Uses AI to answer patient questions
-4. Applies safety rules for risky queries
-
----
-
-## ▶️ How to Run
+## ▶️ Run Locally
 
 ```bash
-pip install groq
-python main.py
-```
-
----
-
-## ⚠️ Disclaimer
-
-This is a prototype AI assistant for educational purposes only.
-It does not replace professional medical advice.
-
----
+pip install -r requirements.txt
+python -m streamlit run app.py
