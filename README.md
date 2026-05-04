@@ -2,7 +2,7 @@
 
 **Turning hospital discharge summaries into actionable, AI-powered patient care instructions.**
 
-🌐 **[Live Demo](https://streamlit.app)**
+🌐 **[Live Demo](👉 https://patient-followup-assistant-ed33mculwgncgfhejpvqfh.streamlit.app/)**
 
 ---
 
@@ -110,7 +110,7 @@ And improves:
 ---
 
 ## 🚀 Live Demo
-👉 **[Click here to view the app](https://streamlit.app)**
+👉 **[Click here to view the app](https://patient-followup-assistant-ed33mculwgncgfhejpvqfh.streamlit.app/)**
 
 ---
 
