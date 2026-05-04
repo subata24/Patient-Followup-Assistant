@@ -1,7 +1,17 @@
-chat_history = []
+# =========================
+# MEMORY MANAGEMENT
+# =========================
 
-def add_to_memory(role, message):
-    chat_history.append(f"{role}: {message}")
-
-def get_memory(limit=6):
+def get_memory_context(chat_history, limit=6):
+    """
+    Returns last N messages as context
+    """
     return "\n".join(chat_history[-limit:])
+
+
+def update_memory(chat_history, user_question, answer):
+    """
+    Stores conversation in memory
+    """
+    chat_history.append(f"Patient: {user_question}")
+    chat_history.append(f"Assistant: {answer}")

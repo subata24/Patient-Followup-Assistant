@@ -1,147 +1,268 @@
 import streamlit as st
-from dotenv import load_dotenv
-import os
-
 from core.ai_engine import safe_ai_call
 from core.risk import detect_risk
-from core.memory import add_to_memory, get_memory
-
-load_dotenv()
+from core.memory import get_memory_context, update_memory
 
 # =========================
-# PAGE CONFIG
+# CONFIG
 # =========================
 st.set_page_config(
-    page_title="AI Patient Assistant",
+    page_title="MedAI SaaS",
+    page_icon="🏥",
     layout="wide"
 )
 
 # =========================
-# LOAD DATA
+# SESSION STATE INIT
 # =========================
-with open("data/sample_discharge.txt", "r", encoding="utf-8") as f:
-    discharge_text = f.read()
+if "patients" not in st.session_state:
+    st.session_state.patients = {}
 
-# =========================
-# SIDEBAR (DASHBOARD)
-# =========================
-with st.sidebar:
-    st.title("🏥 Patient Dashboard")
-
-    st.markdown("### Condition")
-    st.info("Hypertension")
-
-    st.markdown("### Risk System")
-    st.warning("Auto-detects LOW / MEDIUM / HIGH risk")
-
-    st.markdown("### Instructions Summary")
-    st.text(discharge_text[:300])
+if "current_patient" not in st.session_state:
+    st.session_state.current_patient = None
 
 # =========================
-# MAIN UI
+# SAFE PATIENT ACCESS (IMPORTANT FIX)
 # =========================
-st.title("🧠 Post-Discharge AI Assistant")
-
-st.markdown("Ask anything about your recovery below 👇")
-
-# =========================
-# CHAT HISTORY (UI MEMORY)
-# =========================
-if "chat" not in st.session_state:
-    st.session_state.chat = []
+def get_patient():
+    name = st.session_state.current_patient
+    if name and name in st.session_state.patients:
+        return st.session_state.patients[name]
+    return None
 
 # =========================
-# INPUT
+# SIDEBAR
 # =========================
-user_input = st.chat_input("Ask your question...")
+st.sidebar.title("🏥 MedAI SaaS Dashboard")
 
-if user_input:
+mode = st.sidebar.selectbox("Mode", ["Doctor View", "Admin Analytics"])
 
-    # Save user message
-    st.session_state.chat.append(("user", user_input))
-    add_to_memory("Patient", user_input)
+# =========================
+# ADD PATIENT (FIXED FORM)
+# =========================
+st.sidebar.subheader("➕ Add Patient")
 
-    # Risk detection
-    risk = detect_risk(user_input)
+with st.sidebar.form("add_patient_form"):
+    new_name = st.text_input("Name")
+    new_age = st.number_input("Age", 0, 120, 30)
+    new_condition = st.text_input("Condition")
+    new_report = st.text_area("Report")
 
-    # Show risk badge
-    if risk == "HIGH":
-        st.error("⚠️ HIGH RISK DETECTED — Consider contacting doctor")
-    elif risk == "MEDIUM":
-        st.warning("⚠️ Medium risk — be cautious")
+    submitted = st.form_submit_button("Add Patient")
+
+if submitted:
+    if new_name.strip() == "":
+        st.sidebar.error("Name is required")
     else:
-        st.success("Low risk")
+        st.session_state.patients[new_name] = {
+            "name": new_name,
+            "age": new_age,
+            "condition": new_condition,
+            "report": new_report,
+            "ai_output": "",
+            "chat": []
+        }
 
-    # Memory context
-    memory = get_memory()
+        st.session_state.current_patient = new_name
+        st.sidebar.success(f"Patient '{new_name}' added!")
+        st.rerun()
 
-    # Prompt
-    prompt = f"""
+# =========================
+# DEMO PATIENT
+# =========================
+demo_patient = {
+    "report": """
+BP: 160/100 mmHg
+
+Medications:
+- Amlodipine 5mg daily
+- Losartan 50mg daily
+
+Diet:
+- Low sodium diet
+
+Warning:
+- Chest pain
+- Dizziness
+"""
+}
+
+if st.sidebar.button("⚡ Load Demo Patient"):
+
+    st.session_state.patients["Muhammad Ali"] = {
+        "name": "Muhammad Ali",
+        "age": 58,
+        "condition": "Hypertension",
+        "report": demo_patient["report"],
+        "ai_output": "",
+        "chat": []
+    }
+
+    st.session_state.current_patient = "Muhammad Ali"
+    st.rerun()
+
+# =========================
+# PATIENT SELECTOR (FIXED)
+# =========================
+patient_list = list(st.session_state.patients.keys())
+
+selected_patient = st.sidebar.selectbox(
+    "Select Patient",
+    patient_list if patient_list else ["No Patients"],
+    key="patient_selector"
+)
+
+if selected_patient != "No Patients":
+    st.session_state.current_patient = selected_patient
+
+# =========================
+# LOAD ACTIVE PATIENT
+# =========================
+patient = get_patient()
+
+# =========================
+# HEADER
+# =========================
+st.title("🏥 MedAI Clinical SaaS Platform")
+st.caption("AI-powered hospital discharge + monitoring system")
+
+st.divider()
+
+# =========================
+# DOCTOR VIEW
+# =========================
+if mode == "Doctor View" and patient:
+
+    col1, col2 = st.columns([1, 1])
+
+    # LEFT PANEL
+    with col1:
+        st.subheader("📄 Patient Record")
+
+        st.info(f"""
+👤 {patient['name']}
+🎂 Age: {patient['age']}
+🩺 Condition: {patient['condition']}
+""")
+
+        st.text_area("Medical Report", patient["report"], height=250)
+
+        if st.button("🧠 Generate AI Report"):
+
+            patient = get_patient()
+
+            if patient:
+                with st.spinner("AI analyzing..."):
+
+                    prompt = f"""
+Convert into structured medical instructions:
+
+{patient['report']}
+"""
+                    result = safe_ai_call(prompt)
+
+                    st.session_state.patients[patient["name"]]["ai_output"] = result
+
+    # RIGHT PANEL
+    with col2:
+        st.subheader("📊 Risk Dashboard")
+
+        risk = detect_risk(patient["report"])
+
+        if risk == "HIGH":
+            st.error("🔴 HIGH RISK")
+            st.progress(90)
+        elif risk == "MEDIUM":
+            st.warning("🟡 MEDIUM RISK")
+            st.progress(60)
+        else:
+            st.success("🟢 LOW RISK")
+            st.progress(25)
+
+        st.divider()
+
+        st.subheader("🤖 AI Output")
+
+        if patient["ai_output"]:
+            st.write(patient["ai_output"])
+        else:
+            st.info("Generate report first")
+
+    # =========================
+    # CHAT
+    # =========================
+    st.divider()
+    st.subheader("💬 AI Assistant Chat")
+
+    msg = st.chat_input("Ask about this patient...")
+
+    if msg:
+
+        patient = get_patient()
+
+        memory = get_memory_context(patient["chat"])
+
+        prompt = f"""
 You are a medical assistant.
 
-Patient condition:
-{discharge_text}
+Patient:
+{patient['name']}
+Condition:
+{patient['condition']}
+Report:
+{patient['report']}
 
-Conversation:
+Memory:
 {memory}
 
 Question:
-{user_input}
-
-Be clear, safe, and short.
+{msg}
 """
 
-    # AI CALL
-    response = safe_ai_call(prompt)
+        with st.spinner("AI thinking..."):
+            answer = safe_ai_call(prompt)
 
-    # Save assistant response
-    st.session_state.chat.append(("assistant", response))
-    add_to_memory("Assistant", response)
+        st.chat_message("user").write(msg)
+        st.chat_message("assistant").write(answer)
+
+        update_memory(patient["chat"], msg, answer)
 
 # =========================
-# DISPLAY CHAT (CHATGPT STYLE)
+# ADMIN ANALYTICS
 # =========================
-for role, msg in st.session_state.chat:
+elif mode == "Admin Analytics":
 
-    if role == "user":
-        with st.chat_message("user"):
-            st.write(msg)
+    st.subheader("📊 Hospital Analytics Dashboard")
 
-    else:
-        with st.chat_message("assistant"):
-            st.write(msg)
+    total = len(st.session_state.patients)
 
+    high = medium = low = 0
 
+    for p in st.session_state.patients.values():
+        r = detect_risk(p["report"])
+        if r == "HIGH":
+            high += 1
+        elif r == "MEDIUM":
+            medium += 1
+        else:
+            low += 1
 
+    col1, col2, col3 = st.columns(3)
 
+    col1.metric("Total Patients", total)
+    col2.metric("High Risk", high)
+    col3.metric("Low Risk", low)
 
-if st.button("📄 Generate Patient Report"):
+    st.divider()
 
-    report = f"""
-POST DISCHARGE PATIENT REPORT
+    st.bar_chart({
+        "High": high,
+        "Medium": medium,
+        "Low": low
+    })
 
-========================
-
-Condition:
-Hypertension
-
-Recent Interaction Summary:
-{get_memory()}
-
-Latest Advice:
-Follow medication (Amlodipine 5mg daily)
-Maintain low sodium diet
-Monitor blood pressure regularly
-
-Risk Status:
-Auto-detected via system
-
-========================
-"""
-
-    st.download_button(
-        label="⬇ Download Report",
-        data=report,
-        file_name="patient_report.txt",
-        mime="text/plain"
-    )
+# =========================
+# EMPTY STATE
+# =========================
+else:
+    st.info("👈 Add or select a patient from sidebar to begin")

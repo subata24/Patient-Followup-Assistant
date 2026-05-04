@@ -1,32 +1,31 @@
 import os
-import time
+from dotenv import load_dotenv
 from groq import Groq
 
-def get_client():
-    api_key = os.getenv("GROQ_API_KEY")
+load_dotenv()
 
-    if not api_key:
-        raise ValueError("GROQ_API_KEY is missing")
+api_key = os.getenv("GROQ_API_KEY")
 
-    return Groq(api_key=api_key)
+if not api_key:
+    try:
+        import streamlit as st
+        api_key = st.secrets["GROQ_API_KEY"]
+    except:
+        pass
+
+if not api_key:
+    raise ValueError("GROQ_API_KEY missing")
+
+client = Groq(api_key=api_key)
 
 
 def safe_ai_call(prompt, model="llama-3.1-8b-instant"):
     try:
-        client = get_client()  # ✅ created only when needed
-
-        start = time.time()
-
         response = client.chat.completions.create(
             model=model,
             messages=[{"role": "user", "content": prompt}]
         )
-
-        end = time.time()
-        print(f"⏱ Response time: {round(end-start,2)}s")
-
         return response.choices[0].message.content
 
     except Exception as e:
-        print("AI ERROR:", str(e))
-        return "⚠️ AI service error. Please try again."
+        return f"AI ERROR: {str(e)}"
