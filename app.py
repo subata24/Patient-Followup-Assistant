@@ -1,5 +1,5 @@
+import requests
 import streamlit as st
-from core.ai_engine import safe_ai_call
 from core.risk import detect_risk
 from core.memory import get_memory_context, update_memory
 
@@ -12,113 +12,140 @@ st.set_page_config(
     layout="wide"
 )
 
-# =========================
-# SESSION STATE INIT
-# =========================
-if "patients" not in st.session_state:
-    st.session_state.patients = {}
+API_URL = "http://127.0.0.1:8000"
 
+# =========================
+# SESSION STATE
+# =========================
 if "current_patient" not in st.session_state:
     st.session_state.current_patient = None
 
+if "chat_memory" not in st.session_state:
+    st.session_state.chat_memory = {}
+
 # =========================
-# SAFE PATIENT ACCESS (IMPORTANT FIX)
+# FETCH PATIENTS FROM FASTAPI
 # =========================
-def get_patient():
-    name = st.session_state.current_patient
-    if name and name in st.session_state.patients:
-        return st.session_state.patients[name]
-    return None
+def fetch_patients():
+    try:
+        response = requests.get(f"{API_URL}/patients")
+        return response.json()
+    except:
+        return []
+
+patients = fetch_patients()
 
 # =========================
 # SIDEBAR
 # =========================
 st.sidebar.title("🏥 MedAI SaaS Dashboard")
 
-mode = st.sidebar.selectbox("Mode", ["Doctor View", "Admin Analytics"])
+mode = st.sidebar.selectbox(
+    "Mode",
+    ["Doctor View", "Admin Analytics"]
+)
 
 # =========================
-# ADD PATIENT (FIXED FORM)
+# ADD PATIENT FORM
 # =========================
 st.sidebar.subheader("➕ Add Patient")
 
 with st.sidebar.form("add_patient_form"):
+
     new_name = st.text_input("Name")
     new_age = st.number_input("Age", 0, 120, 30)
     new_condition = st.text_input("Condition")
-    new_report = st.text_area("Report")
+    new_report = st.text_area("Medical Report")
 
     submitted = st.form_submit_button("Add Patient")
 
 if submitted:
-    if new_name.strip() == "":
-        st.sidebar.error("Name is required")
-    else:
-        st.session_state.patients[new_name] = {
-            "name": new_name,
-            "age": new_age,
-            "condition": new_condition,
-            "report": new_report,
-            "ai_output": "",
-            "chat": []
-        }
+
+    try:
+
+        response = requests.post(
+            f"{API_URL}/analyze",
+            json={
+                "name": new_name,
+                "report": f"""
+Age: {new_age}
+
+Condition:
+{new_condition}
+
+Report:
+{new_report}
+"""
+            }
+        )
+
+        data = response.json()
 
         st.session_state.current_patient = new_name
-        st.sidebar.success(f"Patient '{new_name}' added!")
+
+        st.sidebar.success("✅ Patient added successfully!")
+
         st.rerun()
+
+    except Exception as e:
+        st.sidebar.error(f"API Error: {e}")
 
 # =========================
 # DEMO PATIENT
 # =========================
-demo_patient = {
-    "report": """
-BP: 160/100 mmHg
-
-Medications:
-- Amlodipine 5mg daily
-- Losartan 50mg daily
-
-Diet:
-- Low sodium diet
-
-Warning:
-- Chest pain
-- Dizziness
-"""
-}
-
 if st.sidebar.button("⚡ Load Demo Patient"):
 
-    st.session_state.patients["Muhammad Ali"] = {
-        "name": "Muhammad Ali",
-        "age": 58,
-        "condition": "Hypertension",
-        "report": demo_patient["report"],
-        "ai_output": "",
-        "chat": []
-    }
+    demo_report = """
+Patient has severe hypertension.
+
+BP: 170/110
+
+Symptoms:
+- Chest pain
+- Dizziness
+
+Medication:
+- Amlodipine
+- Losartan
+
+Diet:
+- Low sodium
+"""
+
+    requests.post(
+        f"{API_URL}/analyze",
+        json={
+            "name": "Muhammad Ali",
+            "report": demo_report
+        }
+    )
 
     st.session_state.current_patient = "Muhammad Ali"
+
     st.rerun()
 
 # =========================
-# PATIENT SELECTOR (FIXED)
+# PATIENT SELECTOR
 # =========================
-patient_list = list(st.session_state.patients.keys())
+patient_names = [p["name"] for p in patients]
 
 selected_patient = st.sidebar.selectbox(
     "Select Patient",
-    patient_list if patient_list else ["No Patients"],
-    key="patient_selector"
+    patient_names if patient_names else ["No Patients"]
 )
 
 if selected_patient != "No Patients":
     st.session_state.current_patient = selected_patient
 
 # =========================
-# LOAD ACTIVE PATIENT
+# ACTIVE PATIENT
 # =========================
-patient = get_patient()
+active_patient = None
+
+for p in patients:
+    if p["name"] == st.session_state.current_patient:
+        active_patient = p
+        break
 
 # =========================
 # HEADER
@@ -131,88 +158,103 @@ st.divider()
 # =========================
 # DOCTOR VIEW
 # =========================
-if mode == "Doctor View" and patient:
+if mode == "Doctor View" and active_patient:
 
     col1, col2 = st.columns([1, 1])
 
+    # =========================
     # LEFT PANEL
+    # =========================
     with col1:
+
         st.subheader("📄 Patient Record")
 
         st.info(f"""
-👤 {patient['name']}
-🎂 Age: {patient['age']}
-🩺 Condition: {patient['condition']}
+👤 {active_patient['name']}
+🆔 Patient ID: {active_patient['id']}
 """)
 
-        st.text_area("Medical Report", patient["report"], height=250)
+        st.text_area(
+            "Discharge Summary",
+            active_patient["discharge_summary"],
+            height=300
+        )
 
-        if st.button("🧠 Generate AI Report"):
-
-            patient = get_patient()
-
-            if patient:
-                with st.spinner("AI analyzing..."):
-
-                    prompt = f"""
-Convert into structured medical instructions:
-
-{patient['report']}
-"""
-                    result = safe_ai_call(prompt)
-
-                    st.session_state.patients[patient["name"]]["ai_output"] = result
-
+    # =========================
     # RIGHT PANEL
+    # =========================
     with col2:
+
         st.subheader("📊 Risk Dashboard")
 
-        risk = detect_risk(patient["report"])
+        risk = active_patient["risk_level"]
 
         if risk == "HIGH":
             st.error("🔴 HIGH RISK")
             st.progress(90)
+
         elif risk == "MEDIUM":
             st.warning("🟡 MEDIUM RISK")
             st.progress(60)
+
         else:
             st.success("🟢 LOW RISK")
             st.progress(25)
 
         st.divider()
 
-        st.subheader("🤖 AI Output")
+        st.subheader("🤖 AI Medical Instructions")
 
-        if patient["ai_output"]:
-            st.write(patient["ai_output"])
-        else:
-            st.info("Generate report first")
+        if st.button("🧠 Generate AI Instructions"):
+
+            with st.spinner("AI analyzing patient..."):
+
+                ai_prompt = f"""
+Convert into structured medical instructions:
+
+{active_patient['discharge_summary']}
+"""
+
+                ai_response = requests.post(
+                    f"{API_URL}/analyze",
+                    json={
+                        "name": active_patient["name"],
+                        "report": active_patient["discharge_summary"]
+                    }
+                )
+
+                result = ai_response.json()
+
+                st.write(result["ai_output"])
 
     # =========================
-    # CHAT
+    # AI CHAT
     # =========================
     st.divider()
-    st.subheader("💬 AI Assistant Chat")
+
+    st.subheader("💬 AI Assistant")
+
+    if active_patient["name"] not in st.session_state.chat_memory:
+        st.session_state.chat_memory[active_patient["name"]] = []
 
     msg = st.chat_input("Ask about this patient...")
 
     if msg:
 
-        patient = get_patient()
-
-        memory = get_memory_context(patient["chat"])
+        memory = get_memory_context(
+            st.session_state.chat_memory[active_patient["name"]]
+        )
 
         prompt = f"""
-You are a medical assistant.
+You are a medical AI assistant.
 
 Patient:
-{patient['name']}
-Condition:
-{patient['condition']}
-Report:
-{patient['report']}
+{active_patient['name']}
 
-Memory:
+Report:
+{active_patient['discharge_summary']}
+
+Conversation Memory:
 {memory}
 
 Question:
@@ -220,12 +262,27 @@ Question:
 """
 
         with st.spinner("AI thinking..."):
-            answer = safe_ai_call(prompt)
+
+            response = requests.post(
+                f"{API_URL}/analyze",
+                json={
+                    "name": active_patient["name"],
+                    "report": prompt
+                }
+            )
+
+            result = response.json()
+
+            answer = result["ai_output"]
 
         st.chat_message("user").write(msg)
         st.chat_message("assistant").write(answer)
 
-        update_memory(patient["chat"], msg, answer)
+        update_memory(
+            st.session_state.chat_memory[active_patient["name"]],
+            msg,
+            answer
+        )
 
 # =========================
 # ADMIN ANALYTICS
@@ -234,16 +291,18 @@ elif mode == "Admin Analytics":
 
     st.subheader("📊 Hospital Analytics Dashboard")
 
-    total = len(st.session_state.patients)
+    total = len(patients)
 
     high = medium = low = 0
 
-    for p in st.session_state.patients.values():
-        r = detect_risk(p["report"])
-        if r == "HIGH":
+    for p in patients:
+
+        if p["risk_level"] == "HIGH":
             high += 1
-        elif r == "MEDIUM":
+
+        elif p["risk_level"] == "MEDIUM":
             medium += 1
+
         else:
             low += 1
 
@@ -261,8 +320,19 @@ elif mode == "Admin Analytics":
         "Low": low
     })
 
+    st.divider()
+
+    st.subheader("📋 Patient Database")
+
+    for p in patients:
+
+        with st.expander(f"{p['name']} — {p['risk_level']}"):
+
+            st.write(p["discharge_summary"])
+
 # =========================
 # EMPTY STATE
 # =========================
 else:
-    st.info("👈 Add or select a patient from sidebar to begin")
+
+    st.info("👈 Add or select a patient from sidebar")
