@@ -226,6 +226,6 @@ MedAI is a proof-of-concept AI healthcare platform built for educational and dem
 
 **Subata Khan** — AI Engineer & LLM Systems Developer
 
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-subata--khan-0A66C2?style=flat-square&logo=linkedin)](https://linkedin.com/in/subata-khan)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-subata--khan-0A66C2?style=flat-square&logo=linkedin)](https://www.linkedin.com/in/subata-khan-217712327/)
 [![GitHub](https://img.shields.io/badge/GitHub-subata24-181717?style=flat-square&logo=github)](https://github.com/subata24)
 
