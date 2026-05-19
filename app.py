@@ -1,31 +1,269 @@
 import requests
 import streamlit as st
-from core.risk import detect_risk
 from core.memory import get_memory_context, update_memory
 
-# =========================
-# CONFIG
-# =========================
+# =========================================================
+# PAGE CONFIG
+# =========================================================
+
 st.set_page_config(
-    page_title="MedAI SaaS",
+    page_title="MedAI Assistant",
     page_icon="🏥",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
 API_URL = "http://127.0.0.1:8000"
 
-# =========================
+# =========================================================
 # SESSION STATE
-# =========================
+# =========================================================
+
 if "current_patient" not in st.session_state:
     st.session_state.current_patient = None
 
 if "chat_memory" not in st.session_state:
     st.session_state.chat_memory = {}
 
-# =========================
-# FETCH PATIENTS FROM FASTAPI
-# =========================
+if "ai_output" not in st.session_state:
+    st.session_state.ai_output = {}
+
+# =========================================================
+# CSS
+# =========================================================
+
+st.markdown("""
+<style>
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+html, body, [class*="css"] {
+    font-family: 'Inter', sans-serif;
+}
+
+/* Hide streamlit branding */
+#MainMenu {
+    visibility: hidden;
+}
+
+footer {
+    visibility: hidden;
+}
+
+/* Main container */
+.block-container {
+    padding-top: 1.5rem;
+    padding-bottom: 2rem;
+    max-width: 1450px;
+}
+
+/* Sidebar */
+section[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #071019 0%, #0F172A 100%);
+    border-right: 1px solid #1E293B;
+    min-width: 320px !important;
+    max-width: 320px !important;
+}
+
+section[data-testid="stSidebar"] > div {
+    width: 320px !important;
+}
+
+/* Sidebar text */
+[data-testid="stSidebar"] * {
+    color: #E2E8F0;
+}
+
+/* Hero */
+.hero {
+    background: linear-gradient(135deg,#0F172A,#111827);
+    padding: 32px;
+    border-radius: 24px;
+    margin-bottom: 24px;
+    border: 1px solid #1E293B;
+}
+
+.hero-title {
+    font-size: 34px;
+    font-weight: 700;
+    color: white;
+}
+
+.hero-sub {
+    color: #CBD5E1;
+    margin-top: 8px;
+    font-size: 15px;
+}
+
+.live-badge {
+    margin-top: 18px;
+    display: inline-block;
+    background: rgba(16,185,129,0.15);
+    color: #6EE7B7;
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* Cards */
+.card {
+    background: white;
+    border-radius: 22px;
+    padding: 24px;
+    border: 1px solid #E2E8F0;
+    margin-bottom: 20px;
+}
+
+.card-title {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 18px;
+    color: #0F172A;
+}
+
+/* Patient strip */
+.patient-strip {
+    background: linear-gradient(135deg,#F8FAFC,#EFF6FF);
+    border: 1px solid #DCE7F7;
+    padding: 18px 20px;
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 22px;
+}
+
+.patient-name {
+    font-size: 18px;
+    font-weight: 700;
+    color: #0F172A;
+}
+
+.patient-id {
+    font-size: 12px;
+    color: #64748B;
+    margin-top: 4px;
+}
+
+/* Risk badges */
+.risk-high {
+    background: #FEF2F2;
+    color: #DC2626;
+    border: 1px solid #FECACA;
+}
+
+.risk-medium {
+    background: #FFF7ED;
+    color: #EA580C;
+    border: 1px solid #FED7AA;
+}
+
+.risk-low {
+    background: #F0FDF4;
+    color: #16A34A;
+    border: 1px solid #BBF7D0;
+}
+
+.risk-badge {
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+/* Buttons */
+.stButton > button {
+    width: 100%;
+    border-radius: 14px;
+    border: none;
+    background: linear-gradient(135deg,#2563EB,#06B6D4);
+    color: white;
+    font-weight: 600;
+    padding: 12px 18px;
+}
+
+/* AI box */
+.ai-box {
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 18px;
+    padding: 18px;
+    line-height: 1.8;
+    color: #334155;
+}
+
+/* Empty state */
+.empty-box {
+    background: white;
+    border: 1px dashed #CBD5E1;
+    border-radius: 24px;
+    padding: 80px 20px;
+    text-align: center;
+}
+
+.empty-title {
+    font-size: 24px;
+    font-weight: 700;
+    margin-top: 14px;
+}
+
+.empty-sub {
+    margin-top: 8px;
+    color: #64748B;
+}
+
+/* Chat */
+[data-testid="stChatMessage"] {
+    border-radius: 16px;
+    border: 1px solid #E2E8F0;
+    padding: 10px;
+}
+
+
+/* INPUT TEXT COLOR FIX */
+
+.stTextInput input,
+.stTextArea textarea,
+.stNumberInput input,
+div[data-baseweb="select"] input {
+    color: #FFFFFF !important;
+    background: #111827 !important;
+    border: 1px solid #334155 !important;
+}
+
+/* Placeholder */
+.stTextInput input::placeholder,
+.stTextArea textarea::placeholder {
+    color: #94A3B8 !important;
+}
+
+/* Labels */
+label {
+    color: #E2E8F0 !important;
+    font-weight: 500 !important;
+}
+
+div[data-baseweb="select"] > div {
+    background: #111827 !important;
+    color: white !important;
+    border: 1px solid #334155 !important;
+}
+
+[data-testid="stForm"] {
+    background: rgba(15,23,42,0.4);
+    padding: 16px;
+    border-radius: 18px;
+    border: 1px solid #1E293B;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+# =========================================================
+# HELPERS
+# =========================================================
+
 def fetch_patients():
     try:
         response = requests.get(f"{API_URL}/patients")
@@ -33,72 +271,89 @@ def fetch_patients():
     except:
         return []
 
+def risk_class(risk):
+    if risk == "HIGH":
+        return "risk-high"
+
+    if risk == "MEDIUM":
+        return "risk-medium"
+
+    return "risk-low"
+
 patients = fetch_patients()
 
-# =========================
+# =========================================================
 # SIDEBAR
-# =========================
-st.sidebar.title("🏥 MedAI SaaS Dashboard")
+# =========================================================
 
-mode = st.sidebar.selectbox(
-    "Mode",
-    ["Doctor View", "Admin Analytics"]
-)
+with st.sidebar:
 
-# =========================
-# ADD PATIENT FORM
-# =========================
-st.sidebar.subheader("➕ Add Patient")
+    st.markdown("""
+    <h1 style='font-size:28px;color:white;margin-bottom:0'>
+    🏥 MedAI Assistant
+    </h1>
+    <p style='color:#94A3B8;margin-top:4px'>
+    AI Clinical Intelligence Platform
+    </p>
+    <hr style='border-color:#1E293B'>
+    """, unsafe_allow_html=True)
 
-with st.sidebar.form("add_patient_form"):
+    st.subheader("Add Patient")
 
-    new_name = st.text_input("Name")
-    new_age = st.number_input("Age", 0, 120, 30)
-    new_condition = st.text_input("Condition")
-    new_report = st.text_area("Medical Report")
+    with st.form("add_patient_form"):
 
-    submitted = st.form_submit_button("Add Patient")
+        patient_name = st.text_input("Patient Name")
 
-if submitted:
-
-    try:
-
-        response = requests.post(
-            f"{API_URL}/analyze",
-            json={
-                "name": new_name,
-                "report": f"""
-Age: {new_age}
-
-Condition:
-{new_condition}
-
-Report:
-{new_report}
-"""
-            }
+        patient_age = st.number_input(
+            "Age",
+            min_value=0,
+            max_value=120,
+            value=30
         )
 
-        data = response.json()
+        patient_condition = st.text_input("Condition")
 
-        st.session_state.current_patient = new_name
+        patient_report = st.text_area(
+            "Discharge Summary",
+            height=150
+        )
 
-        st.sidebar.success("✅ Patient added successfully!")
+        submitted = st.form_submit_button("Add Patient")
 
-        st.rerun()
+    if submitted and patient_name:
 
-    except Exception as e:
-        st.sidebar.error(f"API Error: {e}")
+        report_text = f"""
+Age: {patient_age}
 
-# =========================
-# DEMO PATIENT
-# =========================
-if st.sidebar.button("⚡ Load Demo Patient"):
+Condition:
+{patient_condition}
 
-    demo_report = """
-Patient has severe hypertension.
+Discharge Summary:
+{patient_report}
+"""
 
-BP: 170/110
+        try:
+            requests.post(
+                f"{API_URL}/analyze",
+                json={
+                    "name": patient_name,
+                    "report": report_text
+                }
+            )
+
+            st.session_state.current_patient = patient_name
+            st.success("Patient added")
+            st.rerun()
+
+        except Exception as e:
+            st.error(f"API Error: {e}")
+
+    st.divider()
+
+    if st.button("Load Demo Patient"):
+
+        demo = """
+Patient diagnosed with severe hypertension.
 
 Symptoms:
 - Chest pain
@@ -107,115 +362,149 @@ Symptoms:
 Medication:
 - Amlodipine
 - Losartan
-
-Diet:
-- Low sodium
 """
 
-    requests.post(
-        f"{API_URL}/analyze",
-        json={
-            "name": "Muhammad Ali",
-            "report": demo_report
-        }
-    )
-
-    st.session_state.current_patient = "Muhammad Ali"
-
-    st.rerun()
-
-# =========================
-# PATIENT SELECTOR
-# =========================
-patient_names = [p["name"] for p in patients]
-
-selected_patient = st.sidebar.selectbox(
-    "Select Patient",
-    patient_names if patient_names else ["No Patients"]
-)
-
-if selected_patient != "No Patients":
-    st.session_state.current_patient = selected_patient
-
-# =========================
-# ACTIVE PATIENT
-# =========================
-active_patient = None
-
-for p in patients:
-    if p["name"] == st.session_state.current_patient:
-        active_patient = p
-        break
-
-# =========================
-# HEADER
-# =========================
-st.title("🏥 MedAI Clinical SaaS Platform")
-st.caption("AI-powered hospital discharge + monitoring system")
-
-st.divider()
-
-# =========================
-# DOCTOR VIEW
-# =========================
-if mode == "Doctor View" and active_patient:
-
-    col1, col2 = st.columns([1, 1])
-
-    # =========================
-    # LEFT PANEL
-    # =========================
-    with col1:
-
-        st.subheader("📄 Patient Record")
-
-        st.info(f"""
-👤 {active_patient['name']}
-🆔 Patient ID: {active_patient['id']}
-""")
-
-        st.text_area(
-            "Discharge Summary",
-            active_patient["discharge_summary"],
-            height=300
+        requests.post(
+            f"{API_URL}/analyze",
+            json={
+                "name": "Muhammad Ali",
+                "report": demo
+            }
         )
 
-    # =========================
-    # RIGHT PANEL
-    # =========================
-    with col2:
+        st.session_state.current_patient = "Muhammad Ali"
+        st.rerun()
 
-        st.subheader("📊 Risk Dashboard")
+    st.divider()
 
-        risk = active_patient["risk_level"]
+    st.subheader("Patients")
 
-        if risk == "HIGH":
-            st.error("🔴 HIGH RISK")
-            st.progress(90)
+    if patients:
 
-        elif risk == "MEDIUM":
-            st.warning("🟡 MEDIUM RISK")
-            st.progress(60)
+        patient_names = [p["name"] for p in patients]
 
-        else:
-            st.success("🟢 LOW RISK")
-            st.progress(25)
+        selected_patient = st.selectbox(
+            "Select Patient",
+            patient_names
+        )
 
-        st.divider()
+        st.session_state.current_patient = selected_patient
 
-        st.subheader("🤖 AI Medical Instructions")
+# =========================================================
+# HERO
+# =========================================================
 
-        if st.button("🧠 Generate AI Instructions"):
+st.markdown(f"""
+<div class="hero">
 
-            with st.spinner("AI analyzing patient..."):
+<div class="hero-title">
+Clinical Intelligence Dashboard
+</div>
 
-                ai_prompt = f"""
-Convert into structured medical instructions:
+<div class="hero-sub">
+AI-powered discharge intelligence · {len(patients)} patient records available
+</div>
 
-{active_patient['discharge_summary']}
-"""
+<div class="live-badge">
+● System Online
+</div>
 
-                ai_response = requests.post(
+</div>
+""", unsafe_allow_html=True)
+
+# =========================================================
+# ACTIVE PATIENT
+# =========================================================
+
+active_patient = next(
+    (
+        p for p in patients
+        if p["name"] == st.session_state.current_patient
+    ),
+    None
+)
+
+# =========================================================
+# EMPTY STATE
+# =========================================================
+
+if not active_patient:
+
+    st.markdown("""
+    <div class="empty-box">
+
+    <div style="font-size:64px">
+    🩺
+    </div>
+
+    <div class="empty-title">
+    No Patient Selected
+    </div>
+
+    <div class="empty-sub">
+    Add a patient from the sidebar or load the demo patient.
+    </div>
+
+    </div>
+    """, unsafe_allow_html=True)
+
+# =========================================================
+# MAIN DASHBOARD
+# =========================================================
+
+else:
+
+    risk = active_patient.get("risk_level", "LOW")
+
+    col_a, col_b = st.columns([4, 1])
+
+    with col_a:
+        st.subheader(active_patient["name"])
+        st.caption(f"Patient ID: {active_patient['id']}")
+
+    with col_b:
+        st.metric("Risk", risk)
+
+    left, right = st.columns([1.15, 1])
+
+    # =====================================================
+    # LEFT
+    # =====================================================
+
+    with left:
+
+        st.markdown("""
+        <div class="card-title">
+        📄 Discharge Summary
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.text_area(
+            "summary",
+            value=active_patient.get("discharge_summary", ""),
+            height=420,
+            label_visibility="collapsed"
+        )
+
+    # =====================================================
+    # RIGHT
+    # =====================================================
+
+    with right:
+
+        st.markdown("""
+        <div class="card-title">
+        🤖 AI Clinical Instructions
+        </div>
+        """, unsafe_allow_html=True)
+
+        patient_id = active_patient["id"]
+
+        if st.button("Generate AI Instructions"):
+
+            with st.spinner("Analyzing..."):
+
+                response = requests.post(
                     f"{API_URL}/analyze",
                     json={
                         "name": active_patient["name"],
@@ -223,116 +512,91 @@ Convert into structured medical instructions:
                     }
                 )
 
-                result = ai_response.json()
+                output = response.json().get(
+                    "ai_output",
+                    "No output generated."
+                )
 
-                st.write(result["ai_output"])
+                st.session_state.ai_output[patient_id] = output
 
-    # =========================
-    # AI CHAT
-    # =========================
+        if patient_id in st.session_state.ai_output:
+
+            st.markdown(f"""
+            <div class="ai-box">
+            {st.session_state.ai_output[patient_id]}
+            </div>
+            """, unsafe_allow_html=True)
+
+    # =====================================================
+    # CHAT ASSISTANT
+    # =====================================================
+
     st.divider()
 
-    st.subheader("💬 AI Assistant")
+    st.subheader("💬 AI Medical Assistant")
 
-    if active_patient["name"] not in st.session_state.chat_memory:
-        st.session_state.chat_memory[active_patient["name"]] = []
+    patient_name = active_patient["name"]
 
-    msg = st.chat_input("Ask about this patient...")
+    if patient_name not in st.session_state.chat_memory:
+        st.session_state.chat_memory[patient_name] = []
 
-    if msg:
+    for turn in st.session_state.chat_memory[patient_name]:
 
-        memory = get_memory_context(
-            st.session_state.chat_memory[active_patient["name"]]
+        with st.chat_message("user"):
+            st.write(turn["user"])
+
+        with st.chat_message("assistant"):
+            st.write(turn["assistant"])
+
+    user_message = st.chat_input(
+        "Ask about this patient..."
+    )
+
+    if user_message:
+
+        memory_context = get_memory_context(
+            st.session_state.chat_memory[patient_name]
         )
 
         prompt = f"""
-You are a medical AI assistant.
+You are a clinical AI assistant.
 
 Patient:
-{active_patient['name']}
+{patient_name}
 
-Report:
+Discharge Summary:
 {active_patient['discharge_summary']}
 
 Conversation Memory:
-{memory}
+{memory_context}
 
 Question:
-{msg}
+{user_message}
 """
 
-        with st.spinner("AI thinking..."):
+        with st.spinner("Thinking..."):
 
             response = requests.post(
                 f"{API_URL}/analyze",
                 json={
-                    "name": active_patient["name"],
+                    "name": patient_name,
                     "report": prompt
                 }
             )
 
-            result = response.json()
+            answer = response.json().get(
+                "ai_output",
+                "No response generated."
+            )
 
-            answer = result["ai_output"]
+        with st.chat_message("user"):
+            st.write(user_message)
 
-        st.chat_message("user").write(msg)
-        st.chat_message("assistant").write(answer)
+        with st.chat_message("assistant"):
+            st.write(answer)
 
         update_memory(
-            st.session_state.chat_memory[active_patient["name"]],
-            msg,
+            st.session_state.chat_memory[patient_name],
+            user_message,
             answer
         )
-
-# =========================
-# ADMIN ANALYTICS
-# =========================
-elif mode == "Admin Analytics":
-
-    st.subheader("📊 Hospital Analytics Dashboard")
-
-    total = len(patients)
-
-    high = medium = low = 0
-
-    for p in patients:
-
-        if p["risk_level"] == "HIGH":
-            high += 1
-
-        elif p["risk_level"] == "MEDIUM":
-            medium += 1
-
-        else:
-            low += 1
-
-    col1, col2, col3 = st.columns(3)
-
-    col1.metric("Total Patients", total)
-    col2.metric("High Risk", high)
-    col3.metric("Low Risk", low)
-
-    st.divider()
-
-    st.bar_chart({
-        "High": high,
-        "Medium": medium,
-        "Low": low
-    })
-
-    st.divider()
-
-    st.subheader("📋 Patient Database")
-
-    for p in patients:
-
-        with st.expander(f"{p['name']} — {p['risk_level']}"):
-
-            st.write(p["discharge_summary"])
-
-# =========================
-# EMPTY STATE
-# =========================
-else:
-
-    st.info("👈 Add or select a patient from sidebar")
