@@ -2,7 +2,10 @@
 
 # MedAI Assistant
 
-**AI-powered discharge follow-up dashboard for turning patient summaries into safer, structured care guidance.**
+**AI-powered discharge follow-up dashboard that turns patient summaries into structured care guidance, risk signals, and patient-specific Q&A.**
+
+[![Open App](https://img.shields.io/badge/Open_Live_App-Streamlit-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](https://medai-assistant-w6hqdj4lg7gawdpgjrvde2.streamlit.app/)
+[![API](https://img.shields.io/badge/API-Vercel-black?style=for-the-badge&logo=vercel&logoColor=white)](https://med-ai-assistant-pi.vercel.app/health)
 
 [![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![Streamlit](https://img.shields.io/badge/Streamlit-Frontend-FF4B4B?style=flat-square&logo=streamlit&logoColor=white)](https://streamlit.io)
@@ -13,21 +16,28 @@
 
 ---
 
+## Live Demo
+
+- App: https://medai-assistant-w6hqdj4lg7gawdpgjrvde2.streamlit.app/
+- API health check: https://med-ai-assistant-pi.vercel.app/health
+- API docs: https://med-ai-assistant-pi.vercel.app/docs
+
 ## Overview
 
-MedAI Assistant is a full-stack healthcare AI prototype with a Streamlit clinical dashboard and a FastAPI backend. It lets a user add patient discharge summaries, calculate a simple risk tier, generate structured follow-up instructions with Groq, and chat with an assistant that keeps short per-patient context.
+MedAI Assistant is a full-stack healthcare AI prototype with a Streamlit clinical dashboard and a FastAPI backend. Users can add discharge summaries, store patient records, calculate a simple risk tier, generate structured follow-up instructions with Groq, and ask patient-specific questions through an AI assistant with short-term conversation memory.
 
-This project is designed for portfolio demos, deployment practice, and AI workflow experimentation. It is not a certified clinical tool.
+This project is built for portfolio demos, deployment practice, and AI workflow experimentation. It is not a certified medical product.
 
 ## Features
 
 - Multi-patient dashboard built with Streamlit
-- FastAPI REST backend deployable to Vercel
-- SQLAlchemy persistence with SQLite locally or PostgreSQL in production
-- Groq-powered instruction generation and patient Q&A
+- FastAPI REST backend deployed on Vercel
+- SQLAlchemy persistence with local SQLite or hosted PostgreSQL
+- Groq-powered discharge instruction generation
+- Patient-specific AI chat with recent conversation memory
 - Rule-based risk labels: `LOW`, `MEDIUM`, `HIGH`
-- Backend health check for deployment debugging
-- Safer prompt framing for medical assistant responses
+- Backend health endpoint for deployment debugging
+- Safer medical prompt framing and basic prompt-injection resistance
 
 ## Architecture
 
@@ -44,36 +54,36 @@ Vercel FastAPI
   DATABASE_URL secret
        |
        v
-PostgreSQL provider
-  Neon, Supabase, Railway, or another hosted database
+Hosted PostgreSQL
+  Neon, Supabase, Railway, or another provider
 ```
 
 ## Project Structure
 
 ```text
 .
-├── app.py                    # Streamlit frontend
-├── index.py                  # Vercel entrypoint for FastAPI
-├── vercel.json               # Vercel Python routing
-├── backend/
-│   ├── api.py                # FastAPI app, CORS, router registration
-│   ├── crud.py               # Database operations
-│   ├── database.py           # SQLAlchemy engine/session
-│   ├── models/patient.py     # Patient table model
-│   └── routes/ai_routes.py   # API endpoints
-├── core/
-│   ├── ai_engine.py          # Groq client wrapper
-│   ├── memory.py             # Chat memory formatting
-│   ├── prompts.py            # AI prompt templates
-│   └── risk.py               # Rule-based risk detection
-└── requirements.txt
+|-- app.py                    # Streamlit frontend
+|-- index.py                  # Vercel entrypoint for FastAPI
+|-- vercel.json               # Vercel Python routing
+|-- backend/
+|   |-- api.py                # FastAPI app and CORS
+|   |-- crud.py               # Database operations
+|   |-- database.py           # SQLAlchemy engine/session
+|   |-- models/patient.py     # Patient table model
+|   `-- routes/ai_routes.py   # API endpoints
+|-- core/
+|   |-- ai_engine.py          # Groq client wrapper
+|   |-- memory.py             # Chat memory formatting
+|   |-- prompts.py            # AI prompt templates
+|   `-- risk.py               # Rule-based risk detection
+`-- requirements.txt
 ```
 
-## API
+## API Endpoints
 
 ### `GET /health`
 
-Checks whether the backend is reachable.
+Returns backend status.
 
 ```json
 {
@@ -83,7 +93,7 @@ Checks whether the backend is reachable.
 
 ### `POST /patients`
 
-Creates a patient record and stores the discharge summary.
+Creates a patient record.
 
 ```json
 {
@@ -108,7 +118,7 @@ Generates structured AI instructions from a discharge summary.
 
 ### `POST /chat`
 
-Asks a patient-specific question using the stored discharge summary and recent chat memory.
+Answers a patient-specific question using the stored summary and recent chat memory.
 
 ```json
 {
@@ -148,63 +158,37 @@ Run the frontend in another terminal:
 streamlit run app.py
 ```
 
-Open:
+## Deployment
 
-- Streamlit app: `http://localhost:8501`
-- FastAPI docs: `http://127.0.0.1:8000/docs`
-- Health check: `http://127.0.0.1:8000/health`
+### Vercel Backend
 
-## Deploy Backend To Vercel
-
-1. Push this repository to GitHub.
-2. Go to Vercel and import the GitHub repository.
-3. Keep the framework preset as `Other`.
-4. Add environment variables in Vercel:
+Add these environment variables in Vercel:
 
 ```env
 GROQ_API_KEY=your_groq_api_key
-DATABASE_URL=your_postgres_connection_string
+DATABASE_URL=your_hosted_postgres_connection_string
 ALLOWED_ORIGINS=*
 ```
 
-5. Use a hosted PostgreSQL database for `DATABASE_URL`. Good options are Neon, Supabase, or Railway. SQLite on Vercel is not persistent.
-6. Deploy.
-7. Open your Vercel backend URL and test:
+Use hosted PostgreSQL for production. Do not use `localhost` in Vercel because it points to the serverless environment, not your laptop.
 
-```text
-https://your-project.vercel.app/health
-https://your-project.vercel.app/docs
-```
+### Streamlit Frontend
 
-## Connect Streamlit Cloud To Vercel API
-
-1. Deploy the FastAPI backend on Vercel first.
-2. Copy the Vercel production URL, for example:
-
-```text
-https://patient-followup-assistant-api.vercel.app
-```
-
-3. Open your Streamlit Cloud app dashboard.
-4. Go to `Settings` -> `Secrets`.
-5. Add:
+Add this in Streamlit Cloud secrets:
 
 ```toml
-API_URL = "https://patient-followup-assistant-api.vercel.app"
+API_URL = "https://med-ai-assistant-pi.vercel.app"
 ```
 
-6. Save secrets and reboot the Streamlit app.
-7. In the app, the top status should show `System Online`.
-8. Add or load a demo patient. If the patient list updates, Streamlit is talking to Vercel successfully.
-
-Important: `API_URL` must be the backend URL only, without `/patients`, `/health`, or any endpoint path.
+The value must be the API base URL only. Do not append `/health`, `/patients`, or `/docs`.
 
 ## Production Notes
 
-- Keep `.env` out of GitHub. Use Streamlit Secrets and Vercel Environment Variables instead.
-- Use PostgreSQL for deployed storage. Vercel serverless functions do not provide durable SQLite storage.
-- This project uses a simple keyword risk classifier. It is useful for demos, not clinical triage.
-- The AI assistant is safety-framed, but all medical output must be reviewed by qualified clinicians.
+- Keep `.env` out of GitHub.
+- Store secrets in Streamlit Cloud and Vercel environment variables.
+- Rotate any API key that has been exposed publicly.
+- Use PostgreSQL for deployed storage because Vercel does not provide durable SQLite storage.
+- The risk classifier is a simple rule-based demo, not clinical triage.
 
 ## Disclaimer
 
