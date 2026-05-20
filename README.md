@@ -10,6 +10,7 @@
 [![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![Streamlit](https://img.shields.io/badge/Streamlit-Frontend-FF4B4B?style=flat-square&logo=streamlit&logoColor=white)](https://streamlit.io)
 [![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com/)
 [![Groq](https://img.shields.io/badge/Groq-Llama_3.1-F55036?style=flat-square)](https://groq.com)
 
 </div>
@@ -32,6 +33,7 @@ This project is built for portfolio demos, deployment practice, and AI workflow 
 
 - Multi-patient dashboard built with Streamlit
 - FastAPI REST backend deployed on Vercel
+- Dockerized Streamlit app for reproducible local/container runs
 - SQLAlchemy persistence with local SQLite or hosted PostgreSQL
 - Groq-powered discharge instruction generation
 - Patient-specific AI chat with recent conversation memory
@@ -65,6 +67,8 @@ Hosted PostgreSQL
 |-- app.py                    # Streamlit frontend
 |-- index.py                  # Vercel entrypoint for FastAPI
 |-- vercel.json               # Vercel Python routing
+|-- Dockerfile                # Container image for the Streamlit app
+|-- .dockerignore             # Keeps secrets and local files out of Docker builds
 |-- backend/
 |   |-- api.py                # FastAPI app and CORS
 |   |-- crud.py               # Database operations
@@ -158,6 +162,30 @@ Run the frontend in another terminal:
 streamlit run app.py
 ```
 
+## Docker
+
+The repository includes a Dockerfile for running the Streamlit frontend in a container.
+
+Build the image:
+
+```bash
+docker build -t medai-assistant .
+```
+
+Run the container:
+
+```bash
+docker run --env-file .env -p 8501:8501 medai-assistant
+```
+
+If the backend is running on your host machine, set `API_URL` in `.env` to a reachable address for Docker. On Docker Desktop for Windows, use:
+
+```env
+API_URL=http://host.docker.internal:8000
+```
+
+For production, pass deployed service URLs through environment variables instead of copying secrets into the image.
+
 ## Deployment
 
 ### Vercel Backend
@@ -193,4 +221,3 @@ The value must be the API base URL only. Do not append `/health`, `/patients`, o
 ## Disclaimer
 
 MedAI Assistant is an educational proof of concept. It is not a medical device, does not diagnose, and must not replace emergency care or professional medical advice.
-
