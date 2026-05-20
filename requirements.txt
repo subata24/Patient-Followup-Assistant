@@ -1,3 +1,9 @@
 streamlit
-groq
+fastapi
+uvicorn
+requests
+sqlalchemy
 python-dotenv
+pydantic
+groq
+python-multipart
