@@ -4,7 +4,6 @@ import os
 import requests
 import streamlit as st
 from dotenv import load_dotenv
-
 from core.memory import get_memory_context, update_memory
 
 
@@ -166,6 +165,7 @@ section[data-testid="stSidebar"] > div {
 .stTextArea textarea {
     background-color: #0F172A !important;
     color: #FFFFFF !important;
+<<<<<<< HEAD
     border: 1px solid #334155 !important;
     border-radius: 10px !important;
     font-size: 15px !important;
@@ -192,11 +192,46 @@ section[data-testid="stSidebar"] > div {
 .stTextArea textarea:focus {
     border: 1px solid #3B82F6 !important;
     box-shadow: 0 0 0 1px #3B82F6 !important;
+=======
+    -webkit-text-fill-color: #FFFFFF !important;
+    border: 1px solid #334155 !important;
+    border-radius: 10px !important;
+    font-size: 15px !important;
+    opacity: 1 !important;
+>>>>>>> b19ff85 (Fix textarea readability)
 }
 
+/* BIGGER & CLEARER TEXTAREA */
+.stTextArea textarea {
+    min-height: 220px !important;
+    line-height: 1.7 !important;
+    padding: 14px !important;
+    font-size: 15px !important;
+}
+
+/* Disabled/read-only textarea text */
+.stTextArea textarea:disabled,
+.stTextArea textarea[disabled] {
+    background-color: #0F172A !important;
+    color: #E5E7EB !important;
+    -webkit-text-fill-color: #E5E7EB !important;
+    opacity: 1 !important;
+}
+
+/* Placeholder */
 .stTextInput input::placeholder,
 .stTextArea textarea::placeholder {
     color: #94A3B8 !important;
+    -webkit-text-fill-color: #94A3B8 !important;
+    opacity: 1 !important;
+}
+
+/* Focus effect */
+.stTextInput input:focus,
+.stNumberInput input:focus,
+.stTextArea textarea:focus {
+    border: 1px solid #3B82F6 !important;
+    box-shadow: 0 0 0 1px #3B82F6 !important;
 }
 
 label {
