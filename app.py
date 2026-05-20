@@ -160,13 +160,38 @@ section[data-testid="stSidebar"] > div {
     padding: 10px;
 }
 
+/* Sidebar Inputs */
 .stTextInput input,
-.stTextArea textarea,
 .stNumberInput input,
-div[data-baseweb="select"] input {
+.stTextArea textarea {
+    background-color: #0F172A !important;
     color: #FFFFFF !important;
-    background: #111827 !important;
     border: 1px solid #334155 !important;
+    border-radius: 10px !important;
+    font-size: 15px !important;
+}
+
+/* BIGGER & CLEARER TEXTAREA */
+.stTextArea textarea {
+    min-height: 220px !important;
+    line-height: 1.7 !important;
+    padding: 14px !important;
+    font-size: 15px !important;
+}
+
+/* Placeholder */
+.stTextInput input::placeholder,
+.stTextArea textarea::placeholder {
+    color: #94A3B8 !important;
+    opacity: 1 !important;
+}
+
+/* Focus effect */
+.stTextInput input:focus,
+.stNumberInput input:focus,
+.stTextArea textarea:focus {
+    border: 1px solid #3B82F6 !important;
+    box-shadow: 0 0 0 1px #3B82F6 !important;
 }
 
 .stTextInput input::placeholder,
