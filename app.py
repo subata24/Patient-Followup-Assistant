@@ -1,26 +1,36 @@
+import html
+import os
+
 import requests
 import streamlit as st
+from dotenv import load_dotenv
+
 from core.memory import get_memory_context, update_memory
 
-# =========================================================
-# PAGE CONFIG
-# =========================================================
 
 st.set_page_config(
     page_title="MedAI Assistant",
     page_icon="🏥",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
 
-API_URL = "http://127.0.0.1:8000"
+load_dotenv()
 
-# =========================================================
-# SESSION STATE
-# =========================================================
+API_URL = os.getenv("API_URL", "http://127.0.0.1:8000").rstrip("/")
+try:
+    API_URL = st.secrets.get("API_URL", API_URL).rstrip("/")
+except Exception:
+    pass
+
+REQUEST_TIMEOUT = 30
+
 
 if "current_patient" not in st.session_state:
     st.session_state.current_patient = None
+
+if "current_patient_id" not in st.session_state:
+    st.session_state.current_patient_id = None
 
 if "chat_memory" not in st.session_state:
     st.session_state.chat_memory = {}
@@ -28,36 +38,26 @@ if "chat_memory" not in st.session_state:
 if "ai_output" not in st.session_state:
     st.session_state.ai_output = {}
 
-# =========================================================
-# CSS
-# =========================================================
 
-st.markdown("""
+st.markdown(
+    """
 <style>
-
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 html, body, [class*="css"] {
     font-family: 'Inter', sans-serif;
 }
 
-/* Hide streamlit branding */
-#MainMenu {
+#MainMenu, footer {
     visibility: hidden;
 }
 
-footer {
-    visibility: hidden;
-}
-
-/* Main container */
 .block-container {
     padding-top: 1.5rem;
     padding-bottom: 2rem;
     max-width: 1450px;
 }
 
-/* Sidebar */
 section[data-testid="stSidebar"] {
     background: linear-gradient(180deg, #071019 0%, #0F172A 100%);
     border-right: 1px solid #1E293B;
@@ -69,16 +69,14 @@ section[data-testid="stSidebar"] > div {
     width: 320px !important;
 }
 
-/* Sidebar text */
 [data-testid="stSidebar"] * {
     color: #E2E8F0;
 }
 
-/* Hero */
 .hero {
     background: linear-gradient(135deg,#0F172A,#111827);
     padding: 32px;
-    border-radius: 24px;
+    border-radius: 18px;
     margin-bottom: 24px;
     border: 1px solid #1E293B;
 }
@@ -106,13 +104,9 @@ section[data-testid="stSidebar"] > div {
     font-weight: 600;
 }
 
-/* Cards */
-.card {
-    background: white;
-    border-radius: 22px;
-    padding: 24px;
-    border: 1px solid #E2E8F0;
-    margin-bottom: 20px;
+.live-badge.offline {
+    background: rgba(239,68,68,0.15);
+    color: #FCA5A5;
 }
 
 .card-title {
@@ -122,60 +116,9 @@ section[data-testid="stSidebar"] > div {
     color: #0F172A;
 }
 
-/* Patient strip */
-.patient-strip {
-    background: linear-gradient(135deg,#F8FAFC,#EFF6FF);
-    border: 1px solid #DCE7F7;
-    padding: 18px 20px;
-    border-radius: 18px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 22px;
-}
-
-.patient-name {
-    font-size: 18px;
-    font-weight: 700;
-    color: #0F172A;
-}
-
-.patient-id {
-    font-size: 12px;
-    color: #64748B;
-    margin-top: 4px;
-}
-
-/* Risk badges */
-.risk-high {
-    background: #FEF2F2;
-    color: #DC2626;
-    border: 1px solid #FECACA;
-}
-
-.risk-medium {
-    background: #FFF7ED;
-    color: #EA580C;
-    border: 1px solid #FED7AA;
-}
-
-.risk-low {
-    background: #F0FDF4;
-    color: #16A34A;
-    border: 1px solid #BBF7D0;
-}
-
-.risk-badge {
-    padding: 8px 14px;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 700;
-}
-
-/* Buttons */
 .stButton > button {
     width: 100%;
-    border-radius: 14px;
+    border-radius: 12px;
     border: none;
     background: linear-gradient(135deg,#2563EB,#06B6D4);
     color: white;
@@ -183,21 +126,19 @@ section[data-testid="stSidebar"] > div {
     padding: 12px 18px;
 }
 
-/* AI box */
 .ai-box {
     background: #F8FAFC;
     border: 1px solid #E2E8F0;
-    border-radius: 18px;
+    border-radius: 14px;
     padding: 18px;
     line-height: 1.8;
     color: #334155;
 }
 
-/* Empty state */
 .empty-box {
     background: white;
     border: 1px dashed #CBD5E1;
-    border-radius: 24px;
+    border-radius: 18px;
     padding: 80px 20px;
     text-align: center;
 }
@@ -213,15 +154,11 @@ section[data-testid="stSidebar"] > div {
     color: #64748B;
 }
 
-/* Chat */
 [data-testid="stChatMessage"] {
-    border-radius: 16px;
+    border-radius: 14px;
     border: 1px solid #E2E8F0;
     padding: 10px;
 }
-
-
-/* INPUT TEXT COLOR FIX */
 
 .stTextInput input,
 .stTextArea textarea,
@@ -232,13 +169,11 @@ div[data-baseweb="select"] input {
     border: 1px solid #334155 !important;
 }
 
-/* Placeholder */
 .stTextInput input::placeholder,
 .stTextArea textarea::placeholder {
     color: #94A3B8 !important;
 }
 
-/* Labels */
 label {
     color: #E2E8F0 !important;
     font-weight: 500 !important;
@@ -253,42 +188,40 @@ div[data-baseweb="select"] > div {
 [data-testid="stForm"] {
     background: rgba(15,23,42,0.4);
     padding: 16px;
-    border-radius: 18px;
+    border-radius: 14px;
     border: 1px solid #1E293B;
 }
-
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
-# =========================================================
-# HELPERS
-# =========================================================
 
 def fetch_patients():
     try:
-        response = requests.get(f"{API_URL}/patients")
-        return response.json()
-    except:
-        return []
+        response = requests.get(f"{API_URL}/patients", timeout=REQUEST_TIMEOUT)
+        response.raise_for_status()
+        return response.json(), None
+    except requests.RequestException:
+        return [], "Backend is not reachable. Check API_URL and confirm the FastAPI service is running."
 
-def risk_class(risk):
-    if risk == "HIGH":
-        return "risk-high"
 
-    if risk == "MEDIUM":
-        return "risk-medium"
+def fetch_api_status():
+    try:
+        response = requests.get(f"{API_URL}/health", timeout=10)
+        response.raise_for_status()
+        return True
+    except requests.RequestException:
+        return False
 
-    return "risk-low"
 
-patients = fetch_patients()
+patients, api_error = fetch_patients()
+api_online = api_error is None and fetch_api_status()
 
-# =========================================================
-# SIDEBAR
-# =========================================================
 
 with st.sidebar:
-
-    st.markdown("""
+    st.markdown(
+        """
     <h1 style='font-size:28px;color:white;margin-bottom:0'>
     🏥 MedAI Assistant
     </h1>
@@ -296,32 +229,20 @@ with st.sidebar:
     AI Clinical Intelligence Platform
     </p>
     <hr style='border-color:#1E293B'>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
     st.subheader("Add Patient")
 
     with st.form("add_patient_form"):
-
         patient_name = st.text_input("Patient Name")
-
-        patient_age = st.number_input(
-            "Age",
-            min_value=0,
-            max_value=120,
-            value=30
-        )
-
+        patient_age = st.number_input("Age", min_value=0, max_value=120, value=30)
         patient_condition = st.text_input("Condition")
-
-        patient_report = st.text_area(
-            "Discharge Summary",
-            height=150
-        )
-
+        patient_report = st.text_area("Discharge Summary", height=150)
         submitted = st.form_submit_button("Add Patient")
 
     if submitted and patient_name:
-
         report_text = f"""
 Age: {patient_age}
 
@@ -333,25 +254,25 @@ Discharge Summary:
 """
 
         try:
-            requests.post(
-                f"{API_URL}/analyze",
-                json={
-                    "name": patient_name,
-                    "report": report_text
-                }
+            response = requests.post(
+                f"{API_URL}/patients",
+                json={"name": patient_name, "report": report_text},
+                timeout=REQUEST_TIMEOUT,
             )
+            response.raise_for_status()
+            created_patient = response.json()
 
             st.session_state.current_patient = patient_name
+            st.session_state.current_patient_id = created_patient.get("patient_id")
             st.success("Patient added")
             st.rerun()
 
-        except Exception as e:
+        except requests.RequestException as e:
             st.error(f"API Error: {e}")
 
     st.divider()
 
     if st.button("Load Demo Patient"):
-
         demo = """
 Patient diagnosed with severe hypertension.
 
@@ -364,96 +285,80 @@ Medication:
 - Losartan
 """
 
-        requests.post(
-            f"{API_URL}/analyze",
-            json={
-                "name": "Muhammad Ali",
-                "report": demo
-            }
-        )
+        try:
+            response = requests.post(
+                f"{API_URL}/patients",
+                json={"name": "Muhammad Ali", "report": demo},
+                timeout=REQUEST_TIMEOUT,
+            )
+            response.raise_for_status()
+            created_patient = response.json()
 
-        st.session_state.current_patient = "Muhammad Ali"
-        st.rerun()
+            st.session_state.current_patient = "Muhammad Ali"
+            st.session_state.current_patient_id = created_patient.get("patient_id")
+            st.rerun()
+
+        except requests.RequestException as e:
+            st.error(f"API Error: {e}")
 
     st.divider()
-
     st.subheader("Patients")
 
     if patients:
+        patient_ids = [p["id"] for p in patients]
+        patient_labels = {p["id"]: f"{p['name']} (ID: {p['id']})" for p in patients}
 
-        patient_names = [p["name"] for p in patients]
+        selected_index = 0
+        if st.session_state.current_patient_id in patient_ids:
+            selected_index = patient_ids.index(st.session_state.current_patient_id)
 
-        selected_patient = st.selectbox(
+        selected_patient_id = st.selectbox(
             "Select Patient",
-            patient_names
+            patient_ids,
+            index=selected_index,
+            format_func=lambda patient_id: patient_labels[patient_id],
         )
 
-        st.session_state.current_patient = selected_patient
+        st.session_state.current_patient_id = selected_patient_id
+        st.session_state.current_patient = patient_labels[selected_patient_id]
 
-# =========================================================
-# HERO
-# =========================================================
 
-st.markdown(f"""
+badge_class = "live-badge" if api_online else "live-badge offline"
+badge_text = "System Online" if api_online else "Backend Offline"
+
+st.markdown(
+    f"""
 <div class="hero">
-
-<div class="hero-title">
-Clinical Intelligence Dashboard
+<div class="hero-title">Clinical Intelligence Dashboard</div>
+<div class="hero-sub">AI-powered discharge intelligence · {len(patients)} patient records available</div>
+<div class="{badge_class}">● {badge_text}</div>
 </div>
-
-<div class="hero-sub">
-AI-powered discharge intelligence · {len(patients)} patient records available
-</div>
-
-<div class="live-badge">
-● System Online
-</div>
-
-</div>
-""", unsafe_allow_html=True)
-
-# =========================================================
-# ACTIVE PATIENT
-# =========================================================
-
-active_patient = next(
-    (
-        p for p in patients
-        if p["name"] == st.session_state.current_patient
-    ),
-    None
+""",
+    unsafe_allow_html=True,
 )
 
-# =========================================================
-# EMPTY STATE
-# =========================================================
+if api_error:
+    st.warning(api_error)
+
+active_patient = next(
+    (p for p in patients if p["id"] == st.session_state.current_patient_id),
+    None,
+)
+
 
 if not active_patient:
-
-    st.markdown("""
+    st.markdown(
+        """
     <div class="empty-box">
-
-    <div style="font-size:64px">
-    🩺
+    <div style="font-size:64px">🩺</div>
+    <div class="empty-title">No Patient Selected</div>
+    <div class="empty-sub">Add a patient from the sidebar or load the demo patient.</div>
     </div>
-
-    <div class="empty-title">
-    No Patient Selected
-    </div>
-
-    <div class="empty-sub">
-    Add a patient from the sidebar or load the demo patient.
-    </div>
-
-    </div>
-    """, unsafe_allow_html=True)
-
-# =========================================================
-# MAIN DASHBOARD
-# =========================================================
+    """,
+        unsafe_allow_html=True,
+    )
 
 else:
-
     risk = active_patient.get("risk_level", "LOW")
 
     col_a, col_b = st.columns([4, 1])
@@ -467,127 +372,98 @@ else:
 
     left, right = st.columns([1.15, 1])
 
-    # =====================================================
-    # LEFT
-    # =====================================================
-
     with left:
-
-        st.markdown("""
-        <div class="card-title">
-        📄 Discharge Summary
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(
+            """
+        <div class="card-title">📄 Discharge Summary</div>
+        """,
+            unsafe_allow_html=True,
+        )
 
         st.text_area(
             "summary",
             value=active_patient.get("discharge_summary", ""),
             height=420,
-            label_visibility="collapsed"
+            label_visibility="collapsed",
+            disabled=True,
         )
 
-    # =====================================================
-    # RIGHT
-    # =====================================================
-
     with right:
-
-        st.markdown("""
-        <div class="card-title">
-        🤖 AI Clinical Instructions
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(
+            """
+        <div class="card-title">🤖 AI Clinical Instructions</div>
+        """,
+            unsafe_allow_html=True,
+        )
 
         patient_id = active_patient["id"]
 
         if st.button("Generate AI Instructions"):
-
             with st.spinner("Analyzing..."):
+                try:
+                    response = requests.post(
+                        f"{API_URL}/analyze",
+                        json={"report": active_patient["discharge_summary"]},
+                        timeout=REQUEST_TIMEOUT,
+                    )
+                    response.raise_for_status()
+                    output = response.json().get("ai_output", "No output generated.")
+                    st.session_state.ai_output[patient_id] = output
 
-                response = requests.post(
-                    f"{API_URL}/analyze",
-                    json={
-                        "name": active_patient["name"],
-                        "report": active_patient["discharge_summary"]
-                    }
-                )
-
-                output = response.json().get(
-                    "ai_output",
-                    "No output generated."
-                )
-
-                st.session_state.ai_output[patient_id] = output
+                except requests.RequestException as e:
+                    st.error(f"API Error: {e}")
 
         if patient_id in st.session_state.ai_output:
+            safe_output = html.escape(st.session_state.ai_output[patient_id]).replace(
+                "\n", "<br>"
+            )
 
-            st.markdown(f"""
+            st.markdown(
+                f"""
             <div class="ai-box">
-            {st.session_state.ai_output[patient_id]}
+            {safe_output}
             </div>
-            """, unsafe_allow_html=True)
-
-    # =====================================================
-    # CHAT ASSISTANT
-    # =====================================================
+            """,
+                unsafe_allow_html=True,
+            )
 
     st.divider()
-
     st.subheader("💬 AI Medical Assistant")
 
-    patient_name = active_patient["name"]
+    patient_id = active_patient["id"]
+    chat_key = str(patient_id)
 
-    if patient_name not in st.session_state.chat_memory:
-        st.session_state.chat_memory[patient_name] = []
+    if chat_key not in st.session_state.chat_memory:
+        st.session_state.chat_memory[chat_key] = []
 
-    for turn in st.session_state.chat_memory[patient_name]:
-
+    for turn in st.session_state.chat_memory[chat_key]:
         with st.chat_message("user"):
             st.write(turn["user"])
 
         with st.chat_message("assistant"):
             st.write(turn["assistant"])
 
-    user_message = st.chat_input(
-        "Ask about this patient..."
-    )
+    user_message = st.chat_input("Ask about this patient...")
 
     if user_message:
-
-        memory_context = get_memory_context(
-            st.session_state.chat_memory[patient_name]
-        )
-
-        prompt = f"""
-You are a clinical AI assistant.
-
-Patient:
-{patient_name}
-
-Discharge Summary:
-{active_patient['discharge_summary']}
-
-Conversation Memory:
-{memory_context}
-
-Question:
-{user_message}
-"""
+        memory_context = get_memory_context(st.session_state.chat_memory[chat_key])
 
         with st.spinner("Thinking..."):
+            try:
+                response = requests.post(
+                    f"{API_URL}/chat",
+                    json={
+                        "patient_id": patient_id,
+                        "question": user_message,
+                        "memory": memory_context,
+                    },
+                    timeout=REQUEST_TIMEOUT,
+                )
+                response.raise_for_status()
+                answer = response.json().get("answer", "No response generated.")
 
-            response = requests.post(
-                f"{API_URL}/analyze",
-                json={
-                    "name": patient_name,
-                    "report": prompt
-                }
-            )
-
-            answer = response.json().get(
-                "ai_output",
-                "No response generated."
-            )
+            except requests.RequestException as e:
+                answer = f"API Error: {e}"
 
         with st.chat_message("user"):
             st.write(user_message)
@@ -596,7 +472,7 @@ Question:
             st.write(answer)
 
         update_memory(
-            st.session_state.chat_memory[patient_name],
+            st.session_state.chat_memory[chat_key],
             user_message,
-            answer
+            answer,
         )

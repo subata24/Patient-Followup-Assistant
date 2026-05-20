@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from backend.models.patient import Patient
 
+
 def create_patient(
     db: Session,
     name: str,
@@ -21,4 +22,8 @@ def create_patient(
 
 
 def get_patients(db: Session):
-    return db.query(Patient).all()
+    return db.query(Patient).order_by(Patient.id.desc()).all()
+
+
+def get_patient(db: Session, patient_id: int):
+    return db.query(Patient).filter(Patient.id == patient_id).first()
